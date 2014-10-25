@@ -1,0 +1,182 @@
+<html>
+    <head>
+        <title>orbits of time</title>
+        <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+        <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
+        <script src="physicsjs-full-0.6.0.min.js"></script>
+        <script>
+        $( document ).ready(function() {
+            Physics(function (world) {
+                var tiny_balls = [];
+                var small_balls = [];
+                var large_balls = [];
+
+                function random( min, max ){
+                    return (Math.random() * (max-min) + min)|0
+                }
+
+                function pad(n) {
+                    return (n < 10) ? ("0" + n) : n;
+                }
+
+                function new_sec_obj() {
+                    var min_obj = Physics.body('circle', {
+                        x: random(0, viewWidth)
+                        ,y: random(0, viewHeight)
+                        ,radius: 1.0 // area of circle is proportional to time
+                        ,mass: .0125
+                        ,vx: random(-5, 5)
+                        ,vy: random(-5, 5)
+                        ,styles: {
+                            fillStyle: '#000000'
+                            }
+                        });
+                    return min_obj;
+                }                
+
+                function new_min_obj() {
+                    var min_obj = Physics.body('circle', {
+                        x: random(0, viewWidth)
+                        ,y: random(0, viewHeight)
+                        ,radius: 5.60 // area of circle is proportional to time
+                        ,mass: 1
+                        ,vx: random(-5, 5)/10
+                        ,vy: random(-5, 5)/10
+                        ,styles: {
+                            fillStyle: '#111111'
+                            }
+                        });
+                    return min_obj;
+                }
+
+                function new_hr_obj() {
+                    var hr_obj = Physics.body('circle', {
+                        x:  random(0, viewWidth) 
+                        ,y:  random(0, viewHeight) 
+                        ,radius: 43.7 
+                        ,mass: 10
+                        ,vx: random(-5, 5)/100
+                        ,vy: random(-5, 5)/100
+                        ,styles: {
+                            fillStyle: '#bbbbbb'
+                        }
+                    });
+                    return hr_obj
+                }
+
+                var viewWidth = window.innerWidth
+                    ,viewHeight = window.innerHeight
+                    ,viewportBounds = Physics.aabb(0, 0, viewWidth, viewHeight)
+                    ,edgeBounce
+                    ,renderer
+                    ;
+
+                renderer = Physics.renderer('canvas', {
+                    el: 'viewport'
+                    ,width: viewWidth
+                    ,height: viewHeight
+                });
+
+                world.add(renderer);
+                world.on('step', function () {
+                    world.render();
+                });
+
+                edgeBounce = Physics.behavior('edge-collision-detection', {
+                    aabb: viewportBounds
+                    ,restitution: 0.99
+                    ,cof: 0.8
+                });
+
+                window.addEventListener('resize', function () {
+                    viewWidth = window.innerWidth;
+                    viewHeight = window.innerHeight;
+                    renderer.el.width = viewWidth;
+                    renderer.el.height = viewHeight;
+                    viewportBounds = Physics.aabb(0, 0, viewWidth, viewHeight);
+                    edgeBounce.setAABB(viewportBounds);
+                }, true);
+            
+                var attractor = Physics.behavior('attractor', {
+                    order: 0,
+                    strength: .002
+                });
+
+                world.on({
+                    'interact:poke': function( pos ){
+                        attractor.position( pos );
+                        world.add( attractor );
+                    }
+                    ,'interact:move': function( pos ){
+                        attractor.position( pos );
+                    }
+                    ,'interact:release': function(){
+                        world.remove( attractor );
+                    }
+                });
+
+                world.add([
+                    Physics.behavior('interactive', { el: renderer.el })
+                    ,Physics.behavior('newtonian', { strength: .001 })
+                    ,Physics.behavior('body-impulse-response')
+                    ,edgeBounce
+                ]);
+
+                Physics.util.ticker.on(function( time ) {
+                    world.step( time );
+                    var current_date = new Date( time );
+                    hours = current_date.getHours();
+                    min = current_date.getMinutes();
+                    sec = current_date.getSeconds();
+
+                    $('#clock').html(hours + ':' + pad(min) + ':' + pad(sec));
+
+                    for (var i = tiny_balls.length; i < sec; i++) {
+                        tiny_balls[i] = new_sec_obj(); 
+                        world.add(tiny_balls[i]); 
+                    };
+                    if (tiny_balls.length > sec) {
+                        world.remove(tiny_balls.pop()); 
+                    }
+
+                    for (var i = small_balls.length; i < min; i++) {
+                        small_balls[i] = new_min_obj(); 
+                        world.add(small_balls[i]); 
+                    };
+                    if (small_balls.length > min) {
+                        world.remove(small_balls.pop()); 
+                    }
+                    
+                    for (var i = large_balls.length; i < hours; i++) {
+                        large_balls[i] = new_hr_obj(); 
+                        world.add(large_balls[i]); 
+                    };
+                    if (large_balls.length > hours) {
+                        world.remove(large_balls.pop()); 
+                    }         
+                });
+                Physics.util.ticker.start();
+            });
+          });   
+        </script>
+        <style>
+            body {
+                margin: 0px;
+            }
+            #clock {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                z-index: 2;
+                font-family: "Century Gothic", CenturyGothic, AppleGothic, sans-serif;
+                font-weight: bolder;
+                font-size: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="clock">
+        </div>
+    </body>
+</html>
